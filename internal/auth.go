@@ -48,19 +48,21 @@ func requestCode(c *gin.Context, db *sql.DB) {
 		return
 	}
 
+	// чистим только использованные коды этого телефона
+	if _, err := db.Exec(`DELETE FROM sms_codes WHERE phone=$1 AND used_at IS NOT NULL`, phone); err != nil {
+		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
+		return
+	}
+
 	// DEV код
 	code := "123456"
 
-	_, err := db.Exec(
-		`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`,
-		phone, code,
-	)
+	_, err := db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
 	if err != nil {
 		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
 
-	// ответ без data
 	OK(c, nil)
 }
 
@@ -78,28 +80,30 @@ func verifyCode(c *gin.Context, db *sql.DB, jwtSecret string) {
 		return
 	}
 
-	var exists bool
+	// одноразовый код: если найден и еще не использован — помечаем used_at
+	var smsCodeID int64
 	err := db.QueryRow(
-		`SELECT EXISTS(SELECT 1 FROM sms_codes WHERE phone=$1 AND code=$2)`,
+		`UPDATE sms_codes
+		 SET used_at = now()
+		 WHERE phone=$1 AND code=$2 AND used_at IS NULL
+		 RETURNING id`,
 		phone, code,
-	).Scan(&exists)
+	).Scan(&smsCodeID)
+
+	if err == sql.ErrNoRows {
+		Err(c, http.StatusUnauthorized, "INVALID_CODE", "invalid code")
+		return
+	}
 	if err != nil {
 		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
-	if !exists {
-		Err(c, http.StatusUnauthorized, "INVALID_CODE", "invalid code")
-		return
-	}
 
+	// Создать пользователя, если нет
 	var userID int64
 	err = db.QueryRow(`SELECT id FROM users WHERE phone=$1`, phone).Scan(&userID)
 	if err == sql.ErrNoRows {
-		err = db.QueryRow(
-			`INSERT INTO users(phone) VALUES ($1) RETURNING id`,
-			phone,
-		).Scan(&userID)
-
+		err = db.QueryRow(`INSERT INTO users(phone) VALUES ($1) RETURNING id`, phone).Scan(&userID)
 		if err != nil {
 			Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
