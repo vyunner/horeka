@@ -61,12 +61,13 @@ func requestCode(c *gin.Context, db *sql.DB) {
 	code := "123456"
 
 	// PROD генерация (раскомментируй)
-	// var err error
-	// code, err = gen6Digits()
-	// if err != nil {
-	// 	Err(c, http.StatusInternalServerError, "CODE_GEN_ERROR", "code gen error")
-	// 	return
-	// }
+
+	var err error
+	code, err = gen6Digits()
+	if err != nil {
+		Err(c, http.StatusInternalServerError, "CODE_GEN_ERROR", "code gen error")
+		return
+	}
 
 	_, err := db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
 	if err != nil {
