@@ -51,8 +51,9 @@ func requestCode(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	// чистим только использованные коды этого телефона
-	if _, err := db.Exec(`DELETE FROM sms_codes WHERE phone=$1 AND used_at IS NOT NULL`, phone); err != nil {
+	// максимум 1 активный код на телефон:
+	// перед созданием нового удаляем предыдущий (и использованный, и неиспользованный)
+	if _, err := db.Exec(`DELETE FROM sms_codes WHERE phone=$1`, phone); err != nil {
 		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
@@ -61,7 +62,6 @@ func requestCode(c *gin.Context, db *sql.DB) {
 	code := "123456"
 
 	// PROD генерация (раскомментируй)
-
 	var err error
 	code, err = gen6Digits()
 	if err != nil {
@@ -69,8 +69,7 @@ func requestCode(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	_, err = db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
-	if err != nil {
+	if _, err := db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code); err != nil {
 		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
