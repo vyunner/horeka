@@ -1,7 +1,10 @@
 package internal
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 	"unicode"
@@ -56,6 +59,14 @@ func requestCode(c *gin.Context, db *sql.DB) {
 
 	// DEV код
 	code := "123456"
+
+	// PROD генерация (раскомментируй)
+	// var err error
+	// code, err = gen6Digits()
+	// if err != nil {
+	// 	Err(c, http.StatusInternalServerError, "CODE_GEN_ERROR", "code gen error")
+	// 	return
+	// }
 
 	_, err := db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
 	if err != nil {
@@ -161,4 +172,12 @@ func validatePhone(s string) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func gen6Digits() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }
