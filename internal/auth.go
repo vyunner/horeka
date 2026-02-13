@@ -69,7 +69,7 @@ func requestCode(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	_, err := db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
+	_, err = db.Exec(`INSERT INTO sms_codes(phone, code) VALUES ($1,$2)`, phone, code)
 	if err != nil {
 		Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
