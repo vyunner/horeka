@@ -1,14 +1,16 @@
 package main
 
 import (
+	dbpkg "horeka/internal/db"
+	"horeka/internal/handlers/auth"
+	"horeka/internal/handlers/locations"
+	"horeka/internal/handlers/userlocations"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-
-	"horeka/internal"
 )
 
 func getenv(key, def string) string {
@@ -39,11 +41,11 @@ func main() {
 		log.Fatal("JWT_SECRET is required in .env")
 	}
 
-	db, err := internal.ConnectDB(dsn)
+	conn, err := dbpkg.ConnectDB(dsn)
 	if err != nil {
 		log.Fatalf("db connect: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
 
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -53,8 +55,9 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	internal.RegisterAuthRoutes(r, db, jwtSecret)
-	internal.RegisterItemRoutes(r, db, jwtSecret)
+	auth.RegisterRoutes(r, conn, jwtSecret)
+	locations.RegisterRoutes(r, conn, jwtSecret)
+	userlocations.RegisterRoutes(r, conn, jwtSecret)
 
 	log.Printf("listening on :%s", port)
 	if err := r.Run(":" + port); err != nil {
