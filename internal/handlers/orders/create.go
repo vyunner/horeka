@@ -18,11 +18,6 @@ type createReq struct {
 	Requests   []requestInp `json:"requests"`
 }
 
-type requestInp struct {
-	RawName   string `json:"raw_name"`
-	RawAmount string `json:"raw_amount"`
-}
-
 type createResp struct {
 	OrderID   int64         `json:"order_id"`
 	StatusID  int64         `json:"status_id"`

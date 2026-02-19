@@ -23,4 +23,12 @@ func RegisterRoutes(r *gin.Engine, db *sql.DB, jwtSecret string) {
 	g.GET("/:id", func(c *gin.Context) {
 		showOrder(c, db)
 	})
+
+	g.PUT("/:id", func(c *gin.Context) {
+		updateOrder(c, db)
+	})
+
+	g.POST("/:id/cancel", func(c *gin.Context) {
+		cancelOrder(c, db)
+	})
 }
