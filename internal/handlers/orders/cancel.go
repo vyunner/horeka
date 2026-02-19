@@ -63,6 +63,13 @@ func cancelOrder(c *gin.Context, db *sql.DB) {
 		return
 	}
 
+	const statusNew int64 = 1
+
+	if currentStatus != statusNew {
+		response.Err(c, http.StatusConflict, "ORDER_NOT_CANCELLABLE", "order is not cancellable")
+		return
+	}
+
 	// если хочешь запретить повторную отмену:
 	if currentStatus == cancelledStatusID {
 		response.Err(c, http.StatusConflict, "ALREADY_CANCELLED", "order already cancelled")
