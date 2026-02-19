@@ -16,6 +16,20 @@ type cancelResp struct {
 	StatusID int64 `json:"status_id"`
 }
 
+// cancelOrder godoc
+// @Summary Отмена заказа
+// @Description Отменяет заказ текущего пользователя по ID.
+// @Description
+// @Description Отменить можно только свой заказ и только в статусе "новый" (status_id = 1).
+// @Description Если заказ уже в обработке/завершен/в другом статусе — отмена запрещена.
+// @Description
+// @Description При успешной отмене статус заказа меняется на "отменен" (status_id = 4) и это значение возвращается в ответе.
+// @Tags orders
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID заказа"
+// @Success 200 {object} cancelResp
+// @Router /orders/{id}/cancel [post]
 func cancelOrder(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok || userID <= 0 {

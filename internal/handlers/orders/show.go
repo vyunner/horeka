@@ -46,6 +46,25 @@ type showOrderResp struct {
 	Products    []productItem `json:"products,omitempty"`
 }
 
+// showOrder godoc
+// @Summary Получить детали заказа по ID
+// @Description Возвращает один заказ текущего авторизованного пользователя.
+// @Description
+// @Description Заказ ищется только среди заказов пользователя (id + user_id). Чужие заказы не отдаются.
+// @Description Если заказ не найден — возвращается 404.
+// @Description
+// @Description Состав деталей зависит от статуса заказа:
+// @Description - если status_id = 1 (новый) — возвращаются заявки из order_requests, а поле details_type = "requests"
+// @Description - иначе — возвращаются товары из order_products, а поле details_type = "products"
+// @Description
+// @Description В ответе всегда присутствуют основные поля заказа (id, location_id, status_id, total_sum, comment, created_at)
+// @Description и один из списков: requests или products.
+// @Tags orders
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID заказа"
+// @Success 200 {object} showOrderResp
+// @Router /orders/{id} [get]
 func showOrder(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok || userID <= 0 {

@@ -14,6 +14,17 @@ type meResponse struct {
 	Phone string `json:"phone"`
 }
 
+// me godoc
+// @Summary Получить данные текущего авторизованного пользователя
+// @Description Возвращает информацию о пользователе, который выполняет запрос. Пользователь определяется по JWT-токену, переданному в заголовке Authorization.
+// @Description
+// @Description Этот метод не принимает входных параметров, потому что идентификатор пользователя извлекается сервером из токена доступа.
+// @Description Если токен отсутствует, недействителен или пользователь не найден в базе — будет возвращена ошибка авторизации.
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} meResponse
+// @Router /auth/me [get]
 func me(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok {

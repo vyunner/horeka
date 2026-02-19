@@ -9,9 +9,23 @@ import (
 )
 
 type phoneRequest struct {
-	Phone string `json:"phone"`
+	Phone string `json:"phone" example:"77026207447"`
 }
 
+// RequestCode godoc
+// @Summary Запрос кода подтверждения для входа
+// @Description Создает и сохраняет новый SMS-код для указанного номера телефона.
+// @Description
+// @Description Перед генерацией новый код заменяет все предыдущие коды, ранее созданные для этого номера.
+// @Description Это сделано для того, чтобы одновременно был активен только один код подтверждения.
+// @Description
+// @Description Метод используется как первый шаг авторизации перед вызовом проверки кода.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body phoneRequest true "Номер телефона пользователя"
+// @Success 200
+// @Router /auth/request-code [post]
 func requestCode(c *gin.Context, db *sql.DB) {
 	var req phoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

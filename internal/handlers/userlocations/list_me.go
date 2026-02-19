@@ -20,6 +20,21 @@ type myLocationItem struct {
 	GrantedAt  time.Time `json:"granted_at"`
 }
 
+// listMyLocations godoc
+// @Summary Получить список моих локаций
+// @Description Возвращает все локации, к которым текущий пользователь привязан (таблица user_locations).
+// @Description
+// @Description В ответе для каждой локации возвращаются:
+// @Description - location_id, name, address
+// @Description - role_id и role_name (могут быть null, если роль не назначена)
+// @Description - granted_at — дата/время, когда была выдана привязка к локации
+// @Description
+// @Description Список отсортирован по granted_at по убыванию (сначала самые последние привязки).
+// @Tags user_locations
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} myLocationItem
+// @Router /user-locations/me [get]
 func listMyLocations(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok {

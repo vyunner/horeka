@@ -1,0 +1,590 @@
+basePath: /
+definitions:
+  auth.meResponse:
+    properties:
+      id:
+        type: integer
+      phone:
+        type: string
+    type: object
+  auth.phoneRequest:
+    properties:
+      phone:
+        example: "77026207447"
+        type: string
+    type: object
+  auth.tokenResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+  auth.verifyRequest:
+    properties:
+      code:
+        example: "123456"
+        type: string
+      phone:
+        example: "77026207447"
+        type: string
+    type: object
+  orders.cancelResp:
+    properties:
+      id:
+        type: integer
+      status_id:
+        type: integer
+    type: object
+  orders.createReq:
+    properties:
+      comment:
+        type: string
+      location_id:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestInp'
+        type: array
+    type: object
+  orders.createResp:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      order_id:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestResp'
+        type: array
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+    type: object
+  orders.getOrdersResp:
+    properties:
+      meta:
+        properties:
+          limit:
+            type: integer
+          page:
+            type: integer
+          total:
+            type: integer
+          total_pages:
+            type: integer
+        type: object
+      orders:
+        items:
+          $ref: '#/definitions/orders.orderItem'
+        type: array
+    type: object
+  orders.orderItem:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+    type: object
+  orders.productItem:
+    properties:
+      available:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      price:
+        type: string
+      product_id:
+        type: integer
+      quantity:
+        type: string
+      request_id:
+        type: integer
+      total_sum:
+        type: string
+      unit:
+        type: string
+    type: object
+  orders.requestDTO:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_available:
+        type: boolean
+      raw_amount:
+        type: string
+      raw_name:
+        type: string
+    type: object
+  orders.requestInp:
+    properties:
+      raw_amount:
+        type: string
+      raw_name:
+        type: string
+    type: object
+  orders.requestItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_available:
+        type: boolean
+      raw_amount:
+        type: string
+      raw_name:
+        type: string
+    type: object
+  orders.requestResp:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_available:
+        type: boolean
+      raw_amount:
+        type: string
+      raw_name:
+        type: string
+    type: object
+  orders.showOrderResp:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      details_type:
+        description: '"requests" | "products"'
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/orders.productItem'
+        type: array
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestItem'
+        type: array
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  orders.updateReq:
+    properties:
+      comment:
+        type: string
+      location_id:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestInp'
+        type: array
+    type: object
+  orders.updateResp:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestDTO'
+        type: array
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  userlocations.bindUserToLocationReq:
+    properties:
+      location_id:
+        type: integer
+      role_id:
+        description: null => без роли / стереть
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  userlocations.myLocationItem:
+    properties:
+      address:
+        type: string
+      granted_at:
+        type: string
+      location_id:
+        type: integer
+      name:
+        type: string
+      role_id:
+        type: integer
+      role_name:
+        type: string
+    type: object
+  userlocations.unbindUserFromLocationReq:
+    properties:
+      location_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Horeka backend
+  title: Horeka API
+  version: "1.0"
+paths:
+  /auth/me:
+    get:
+      description: |-
+        Возвращает информацию о пользователе, который выполняет запрос. Пользователь определяется по JWT-токену, переданному в заголовке Authorization.
+
+        Этот метод не принимает входных параметров, потому что идентификатор пользователя извлекается сервером из токена доступа.
+        Если токен отсутствует, недействителен или пользователь не найден в базе — будет возвращена ошибка авторизации.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.meResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить данные текущего авторизованного пользователя
+      tags:
+      - auth
+  /auth/request-code:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создает и сохраняет новый SMS-код для указанного номера телефона.
+
+        Перед генерацией новый код заменяет все предыдущие коды, ранее созданные для этого номера.
+        Это сделано для того, чтобы одновременно был активен только один код подтверждения.
+
+        Метод используется как первый шаг авторизации перед вызовом проверки кода.
+      parameters:
+      - description: Номер телефона пользователя
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.phoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Запрос кода подтверждения для входа
+      tags:
+      - auth
+  /auth/verify-code:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверяет SMS-код, выданный ранее для номера телефона.
+
+        Если код корректный и еще не использовался — он помечается использованным.
+        После успешной проверки выполняется поиск пользователя по номеру.
+        Если пользователь не существует — он создается автоматически.
+
+        В случае успешной проверки возвращается JWT access token,
+        который используется для авторизации во всех защищённых методах API.
+      parameters:
+      - description: Телефон и код подтверждения
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.verifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.tokenResponse'
+      summary: Подтверждение кода и вход пользователя
+      tags:
+      - auth
+  /orders:
+    get:
+      description: |-
+        Возвращает заказы, относящиеся к указанной локации, отсортированные по дате создания (сначала новые).
+
+        Требуется доступ пользователя к локации: пользователь должен быть привязан к location_id (user_locations).
+        Если локация не существует — возвращается ошибка. Если доступа к локации нет — возвращается запрет.
+
+        Параметры page и limit управляют пагинацией. limit ограничен максимумом 100.
+        В ответе возвращается список заказов и мета-информация (page, limit, total, total_pages).
+        Если заказов нет — возвращается пустой массив orders и meta.total = 0.
+      parameters:
+      - description: ID локации
+        in: query
+        name: location_id
+        required: true
+        type: integer
+      - description: Страница (по умолчанию 1)
+        in: query
+        name: page
+        type: integer
+      - description: Лимит (по умолчанию 10, максимум 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.getOrdersResp'
+      security:
+      - BearerAuth: []
+      summary: Получить список заказов по локации с пагинацией
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создает заказ для текущего авторизованного пользователя в указанной локации.
+
+        В теле запроса передается список позиций (requests) в свободной форме: raw_name и raw_amount.
+        Сервер сохраняет эти позиции как заявки и создает заказ в начальном статусе "новый" (status_id = 1).
+
+        comment — необязательный комментарий к заказу. Если передан пустым, в базе будет NULL и поле может отсутствовать в ответе.
+
+        В ответе возвращается созданный заказ и список сохраненных заявок с их ID и временем создания.
+      parameters:
+      - description: Локация, комментарий (опц.), список заявок
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/orders.createReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.createResp'
+      security:
+      - BearerAuth: []
+      summary: Создание нового заказа
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      description: |-
+        Возвращает один заказ текущего авторизованного пользователя.
+
+        Заказ ищется только среди заказов пользователя (id + user_id). Чужие заказы не отдаются.
+        Если заказ не найден — возвращается 404.
+
+        Состав деталей зависит от статуса заказа:
+        - если status_id = 1 (новый) — возвращаются заявки из order_requests, а поле details_type = "requests"
+        - иначе — возвращаются товары из order_products, а поле details_type = "products"
+
+        В ответе всегда присутствуют основные поля заказа (id, location_id, status_id, total_sum, comment, created_at)
+        и один из списков: requests или products.
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.showOrderResp'
+      security:
+      - BearerAuth: []
+      summary: Получить детали заказа по ID
+      tags:
+      - orders
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Обновляет заказ текущего авторизованного пользователя по ID.
+
+        Редактирование разрешено только для заказов в статусе "новый" (status_id = 1).
+        Если статус уже изменился (в обработке/закрыт/отменен и т.п.) — возвращается конфликт и заказ не меняется.
+
+        Обновляются поля location_id и comment (comment необязателен: пустая строка будет сохранена как NULL).
+
+        Список заявок (requests) перезаписывается полностью:
+        старые записи из order_requests удаляются и создаются новые на основе переданного массива.
+        Это сделано, чтобы редактирование было простым и однозначным: итоговый список = то, что пришло в запросе.
+
+        В ответе возвращается обновленный заказ и новый список заявок с их ID и временем создания.
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Новые данные заказа: location_id, comment (опц.), requests'
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/orders.updateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.updateResp'
+      security:
+      - BearerAuth: []
+      summary: Редактировать заказ (только пока он новый)
+      tags:
+      - orders
+  /orders/{id}/cancel:
+    post:
+      description: |-
+        Отменяет заказ текущего пользователя по ID.
+
+        Отменить можно только свой заказ и только в статусе "новый" (status_id = 1).
+        Если заказ уже в обработке/завершен/в другом статусе — отмена запрещена.
+
+        При успешной отмене статус заказа меняется на "отменен" (status_id = 4) и это значение возвращается в ответе.
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.cancelResp'
+      security:
+      - BearerAuth: []
+      summary: Отмена заказа
+      tags:
+      - orders
+  /user-locations/bind:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создает или обновляет привязку пользователя к локации.
+
+        Если привязки user_id + location_id еще нет — она будет создана.
+        Если привязка уже существует — будет обновлено только поле role_id.
+
+        role_id — необязательное поле.
+        - role_id = null: привязка остается, роль будет очищена (role_id станет NULL)
+        - role_id > 0: роль будет установлена/заменена на указанную
+
+        Метод проверяет существование пользователя, локации и (если передан) роли.
+      parameters:
+      - description: user_id, location_id, role_id (опц.)
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/userlocations.bindUserToLocationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Привязать пользователя к локации (назначить роль)
+      tags:
+      - user_locations
+  /user-locations/me:
+    get:
+      description: |-
+        Возвращает все локации, к которым текущий пользователь привязан (таблица user_locations).
+
+        В ответе для каждой локации возвращаются:
+        - location_id, name, address
+        - role_id и role_name (могут быть null, если роль не назначена)
+        - granted_at — дата/время, когда была выдана привязка к локации
+
+        Список отсортирован по granted_at по убыванию (сначала самые последние привязки).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/userlocations.myLocationItem'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Получить список моих локаций
+      tags:
+      - user_locations
+  /user-locations/unbind:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Удаляет привязку пользователя к локации (запись из user_locations) по паре user_id + location_id.
+
+        Если пользователя или локации не существует — возвращается 404.
+        Если привязки user_id + location_id нет — возвращается 404 (bind not found).
+        При успешном удалении возвращается 200 без тела.
+      parameters:
+      - description: user_id и location_id
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/userlocations.unbindUserFromLocationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Отвязать пользователя от локации
+      tags:
+      - user_locations
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

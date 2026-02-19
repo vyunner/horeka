@@ -11,14 +11,30 @@ import (
 )
 
 type verifyRequest struct {
-	Phone string `json:"phone"`
-	Code  string `json:"code"`
+	Phone string `json:"phone" example:"77026207447"`
+	Code  string `json:"code" example:"123456"`
 }
 
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+// verifyCode godoc
+// @Summary Подтверждение кода и вход пользователя
+// @Description Проверяет SMS-код, выданный ранее для номера телефона.
+// @Description
+// @Description Если код корректный и еще не использовался — он помечается использованным.
+// @Description После успешной проверки выполняется поиск пользователя по номеру.
+// @Description Если пользователь не существует — он создается автоматически.
+// @Description
+// @Description В случае успешной проверки возвращается JWT access token,
+// @Description который используется для авторизации во всех защищённых методах API.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body verifyRequest true "Телефон и код подтверждения"
+// @Success 200 {object} tokenResponse
+// @Router /auth/verify-code [post]
 func verifyCode(c *gin.Context, db *sql.DB, jwtSecret string) {
 	var req verifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

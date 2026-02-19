@@ -1,0 +1,785 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Horeka backend",
+        "title": "Horeka API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает информацию о пользователе, который выполняет запрос. Пользователь определяется по JWT-токену, переданному в заголовке Authorization.\n\nЭтот метод не принимает входных параметров, потому что идентификатор пользователя извлекается сервером из токена доступа.\nЕсли токен отсутствует, недействителен или пользователь не найден в базе — будет возвращена ошибка авторизации.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Получить данные текущего авторизованного пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.meResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/request-code": {
+            "post": {
+                "description": "Создает и сохраняет новый SMS-код для указанного номера телефона.\n\nПеред генерацией новый код заменяет все предыдущие коды, ранее созданные для этого номера.\nЭто сделано для того, чтобы одновременно был активен только один код подтверждения.\n\nМетод используется как первый шаг авторизации перед вызовом проверки кода.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Запрос кода подтверждения для входа",
+                "parameters": [
+                    {
+                        "description": "Номер телефона пользователя",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.phoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/auth/verify-code": {
+            "post": {
+                "description": "Проверяет SMS-код, выданный ранее для номера телефона.\n\nЕсли код корректный и еще не использовался — он помечается использованным.\nПосле успешной проверки выполняется поиск пользователя по номеру.\nЕсли пользователь не существует — он создается автоматически.\n\nВ случае успешной проверки возвращается JWT access token,\nкоторый используется для авторизации во всех защищённых методах API.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Подтверждение кода и вход пользователя",
+                "parameters": [
+                    {
+                        "description": "Телефон и код подтверждения",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.verifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.tokenResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает заказы, относящиеся к указанной локации, отсортированные по дате создания (сначала новые).\n\nТребуется доступ пользователя к локации: пользователь должен быть привязан к location_id (user_locations).\nЕсли локация не существует — возвращается ошибка. Если доступа к локации нет — возвращается запрет.\n\nПараметры page и limit управляют пагинацией. limit ограничен максимумом 100.\nВ ответе возвращается список заказов и мета-информация (page, limit, total, total_pages).\nЕсли заказов нет — возвращается пустой массив orders и meta.total = 0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Получить список заказов по локации с пагинацией",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID локации",
+                        "name": "location_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Страница (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Лимит (по умолчанию 10, максимум 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.getOrdersResp"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создает заказ для текущего авторизованного пользователя в указанной локации.\n\nВ теле запроса передается список позиций (requests) в свободной форме: raw_name и raw_amount.\nСервер сохраняет эти позиции как заявки и создает заказ в начальном статусе \"новый\" (status_id = 1).\n\ncomment — необязательный комментарий к заказу. Если передан пустым, в базе будет NULL и поле может отсутствовать в ответе.\n\nВ ответе возвращается созданный заказ и список сохраненных заявок с их ID и временем создания.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Создание нового заказа",
+                "parameters": [
+                    {
+                        "description": "Локация, комментарий (опц.), список заявок",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orders.createReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.createResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает один заказ текущего авторизованного пользователя.\n\nЗаказ ищется только среди заказов пользователя (id + user_id). Чужие заказы не отдаются.\nЕсли заказ не найден — возвращается 404.\n\nСостав деталей зависит от статуса заказа:\n- если status_id = 1 (новый) — возвращаются заявки из order_requests, а поле details_type = \"requests\"\n- иначе — возвращаются товары из order_products, а поле details_type = \"products\"\n\nВ ответе всегда присутствуют основные поля заказа (id, location_id, status_id, total_sum, comment, created_at)\nи один из списков: requests или products.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Получить детали заказа по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.showOrderResp"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Обновляет заказ текущего авторизованного пользователя по ID.\n\nРедактирование разрешено только для заказов в статусе \"новый\" (status_id = 1).\nЕсли статус уже изменился (в обработке/закрыт/отменен и т.п.) — возвращается конфликт и заказ не меняется.\n\nОбновляются поля location_id и comment (comment необязателен: пустая строка будет сохранена как NULL).\n\nСписок заявок (requests) перезаписывается полностью:\nстарые записи из order_requests удаляются и создаются новые на основе переданного массива.\nЭто сделано, чтобы редактирование было простым и однозначным: итоговый список = то, что пришло в запросе.\n\nВ ответе возвращается обновленный заказ и новый список заявок с их ID и временем создания.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Редактировать заказ (только пока он новый)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новые данные заказа: location_id, comment (опц.), requests",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orders.updateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.updateResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отменяет заказ текущего пользователя по ID.\n\nОтменить можно только свой заказ и только в статусе \"новый\" (status_id = 1).\nЕсли заказ уже в обработке/завершен/в другом статусе — отмена запрещена.\n\nПри успешной отмене статус заказа меняется на \"отменен\" (status_id = 4) и это значение возвращается в ответе.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Отмена заказа",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orders.cancelResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/user-locations/bind": {
+            "post": {
+                "description": "Создает или обновляет привязку пользователя к локации.\n\nЕсли привязки user_id + location_id еще нет — она будет создана.\nЕсли привязка уже существует — будет обновлено только поле role_id.\n\nrole_id — необязательное поле.\n- role_id = null: привязка остается, роль будет очищена (role_id станет NULL)\n- role_id \u003e 0: роль будет установлена/заменена на указанную\n\nМетод проверяет существование пользователя, локации и (если передан) роли.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user_locations"
+                ],
+                "summary": "Привязать пользователя к локации (назначить роль)",
+                "parameters": [
+                    {
+                        "description": "user_id, location_id, role_id (опц.)",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/userlocations.bindUserToLocationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user-locations/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает все локации, к которым текущий пользователь привязан (таблица user_locations).\n\nВ ответе для каждой локации возвращаются:\n- location_id, name, address\n- role_id и role_name (могут быть null, если роль не назначена)\n- granted_at — дата/время, когда была выдана привязка к локации\n\nСписок отсортирован по granted_at по убыванию (сначала самые последние привязки).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user_locations"
+                ],
+                "summary": "Получить список моих локаций",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/userlocations.myLocationItem"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user-locations/unbind": {
+            "post": {
+                "description": "Удаляет привязку пользователя к локации (запись из user_locations) по паре user_id + location_id.\n\nЕсли пользователя или локации не существует — возвращается 404.\nЕсли привязки user_id + location_id нет — возвращается 404 (bind not found).\nПри успешном удалении возвращается 200 без тела.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user_locations"
+                ],
+                "summary": "Отвязать пользователя от локации",
+                "parameters": [
+                    {
+                        "description": "user_id и location_id",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/userlocations.unbindUserFromLocationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "auth.meResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.phoneRequest": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "example": "77026207447"
+                }
+            }
+        },
+        "auth.tokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.verifyRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "77026207447"
+                }
+            }
+        },
+        "orders.cancelResp": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "status_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orders.createReq": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestInp"
+                    }
+                }
+            }
+        },
+        "orders.createResp": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestResp"
+                    }
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.getOrdersResp": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "page": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        },
+                        "total_pages": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.orderItem"
+                    }
+                }
+            }
+        },
+        "orders.orderItem": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.productItem": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.requestDTO": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_available": {
+                    "type": "boolean"
+                },
+                "raw_amount": {
+                    "type": "string"
+                },
+                "raw_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.requestInp": {
+            "type": "object",
+            "properties": {
+                "raw_amount": {
+                    "type": "string"
+                },
+                "raw_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.requestItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_available": {
+                    "type": "boolean"
+                },
+                "raw_amount": {
+                    "type": "string"
+                },
+                "raw_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.requestResp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_available": {
+                    "type": "boolean"
+                },
+                "raw_amount": {
+                    "type": "string"
+                },
+                "raw_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.showOrderResp": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "details_type": {
+                    "description": "\"requests\" | \"products\"",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.productItem"
+                    }
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestItem"
+                    }
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orders.updateReq": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestInp"
+                    }
+                }
+            }
+        },
+        "orders.updateResp": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestDTO"
+                    }
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "userlocations.bindUserToLocationReq": {
+            "type": "object",
+            "properties": {
+                "location_id": {
+                    "type": "integer"
+                },
+                "role_id": {
+                    "description": "null =\u003e без роли / стереть",
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "userlocations.myLocationItem": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "granted_at": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "integer"
+                },
+                "role_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "userlocations.unbindUserFromLocationReq": {
+            "type": "object",
+            "properties": {
+                "location_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

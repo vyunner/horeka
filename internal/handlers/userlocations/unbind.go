@@ -14,6 +14,19 @@ type unbindUserFromLocationReq struct {
 	LocationID int64 `json:"location_id"`
 }
 
+// unbindUserFromLocation godoc
+// @Summary Отвязать пользователя от локации
+// @Description Удаляет привязку пользователя к локации (запись из user_locations) по паре user_id + location_id.
+// @Description
+// @Description Если пользователя или локации не существует — возвращается 404.
+// @Description Если привязки user_id + location_id нет — возвращается 404 (bind not found).
+// @Description При успешном удалении возвращается 200 без тела.
+// @Tags user_locations
+// @Accept json
+// @Produce json
+// @Param input body unbindUserFromLocationReq true "user_id и location_id"
+// @Success 200
+// @Router /user-locations/unbind [post]
 func unbindUserFromLocation(c *gin.Context, db *sql.DB) {
 	var req unbindUserFromLocationReq
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -32,6 +32,24 @@ type getOrdersResp struct {
 	} `json:"meta"`
 }
 
+// getOrders godoc
+// @Summary Получить список заказов по локации с пагинацией
+// @Description Возвращает заказы, относящиеся к указанной локации, отсортированные по дате создания (сначала новые).
+// @Description
+// @Description Требуется доступ пользователя к локации: пользователь должен быть привязан к location_id (user_locations).
+// @Description Если локация не существует — возвращается ошибка. Если доступа к локации нет — возвращается запрет.
+// @Description
+// @Description Параметры page и limit управляют пагинацией. limit ограничен максимумом 100.
+// @Description В ответе возвращается список заказов и мета-информация (page, limit, total, total_pages).
+// @Description Если заказов нет — возвращается пустой массив orders и meta.total = 0.
+// @Tags orders
+// @Produce json
+// @Security BearerAuth
+// @Param location_id query int true "ID локации"
+// @Param page query int false "Страница (по умолчанию 1)"
+// @Param limit query int false "Лимит (по умолчанию 10, максимум 100)"
+// @Success 200 {object} getOrdersResp
+// @Router /orders [get]
 func getOrders(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok || userID <= 0 {

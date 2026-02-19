@@ -15,6 +15,24 @@ type bindUserToLocationReq struct {
 	RoleID     *int64 `json:"role_id"` // null => без роли / стереть
 }
 
+// bindUserToLocation godoc
+// @Summary Привязать пользователя к локации (назначить роль)
+// @Description Создает или обновляет привязку пользователя к локации.
+// @Description
+// @Description Если привязки user_id + location_id еще нет — она будет создана.
+// @Description Если привязка уже существует — будет обновлено только поле role_id.
+// @Description
+// @Description role_id — необязательное поле.
+// @Description - role_id = null: привязка остается, роль будет очищена (role_id станет NULL)
+// @Description - role_id > 0: роль будет установлена/заменена на указанную
+// @Description
+// @Description Метод проверяет существование пользователя, локации и (если передан) роли.
+// @Tags user_locations
+// @Accept json
+// @Produce json
+// @Param input body bindUserToLocationReq true "user_id, location_id, role_id (опц.)"
+// @Success 200
+// @Router /user-locations/bind [post]
 func bindUserToLocation(c *gin.Context, db *sql.DB) {
 	var req bindUserToLocationReq
 	if err := c.ShouldBindJSON(&req); err != nil {

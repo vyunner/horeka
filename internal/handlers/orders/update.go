@@ -38,6 +38,28 @@ type updateResp struct {
 	Requests   []requestDTO `json:"requests"`
 }
 
+// updateOrder godoc
+// @Summary Редактировать заказ (только пока он новый)
+// @Description Обновляет заказ текущего авторизованного пользователя по ID.
+// @Description
+// @Description Редактирование разрешено только для заказов в статусе "новый" (status_id = 1).
+// @Description Если статус уже изменился (в обработке/закрыт/отменен и т.п.) — возвращается конфликт и заказ не меняется.
+// @Description
+// @Description Обновляются поля location_id и comment (comment необязателен: пустая строка будет сохранена как NULL).
+// @Description
+// @Description Список заявок (requests) перезаписывается полностью:
+// @Description старые записи из order_requests удаляются и создаются новые на основе переданного массива.
+// @Description Это сделано, чтобы редактирование было простым и однозначным: итоговый список = то, что пришло в запросе.
+// @Description
+// @Description В ответе возвращается обновленный заказ и новый список заявок с их ID и временем создания.
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID заказа"
+// @Param input body updateReq true "Новые данные заказа: location_id, comment (опц.), requests"
+// @Success 200 {object} updateResp
+// @Router /orders/{id} [put]
 func updateOrder(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok || userID <= 0 {

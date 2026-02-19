@@ -1,3 +1,11 @@
+// @title Horeka API
+// @version 1.0
+// @description Horeka backend
+// @BasePath /
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -9,6 +17,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	_ "horeka/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -55,6 +68,8 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	auth.RegisterRoutes(r, conn, jwtSecret)
 	locations.RegisterRoutes(r, conn, jwtSecret)

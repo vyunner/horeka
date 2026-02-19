@@ -35,6 +35,23 @@ type requestResp struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// createOrder godoc
+// @Summary Создание нового заказа
+// @Description Создает заказ для текущего авторизованного пользователя в указанной локации.
+// @Description
+// @Description В теле запроса передается список позиций (requests) в свободной форме: raw_name и raw_amount.
+// @Description Сервер сохраняет эти позиции как заявки и создает заказ в начальном статусе "новый" (status_id = 1).
+// @Description
+// @Description comment — необязательный комментарий к заказу. Если передан пустым, в базе будет NULL и поле может отсутствовать в ответе.
+// @Description
+// @Description В ответе возвращается созданный заказ и список сохраненных заявок с их ID и временем создания.
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param input body createReq true "Локация, комментарий (опц.), список заявок"
+// @Success 200 {object} createResp
+// @Router /orders [post]
 func createOrder(c *gin.Context, db *sql.DB) {
 	userID, ok := middleware.CurrentUserID(c)
 	if !ok || userID <= 0 {
