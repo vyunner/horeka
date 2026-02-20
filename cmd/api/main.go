@@ -17,12 +17,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "horeka/docs"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -64,6 +66,16 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	_ = r.SetTrustedProxies(nil)
+
+	// ===== CORS FULL OPEN =====
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins: true,
+		AllowMethods:    []string{"*"},
+		AllowHeaders:    []string{"*"},
+		ExposeHeaders:   []string{"*"},
+		MaxAge:          12 * time.Hour,
+	}))
+	// ===========================
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
