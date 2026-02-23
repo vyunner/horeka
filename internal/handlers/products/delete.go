@@ -1,4 +1,4 @@
-package locations
+package products
 
 import (
 	"database/sql"
@@ -11,17 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// DeleteLocation godoc
-// @Summary Удаление локации
-// @Description Удаляет локацию по ID.
+// DeleteProduct godoc
+// @Summary Удаление продукта
+// @Description Удаляет продукт по ID.
 // @Description Доступ только для роли admin.
-// @Tags locations
+// @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "ID локации"
+// @Param id path int true "ID продукта"
 // @Success 200
-// @Router /locations/{id} [delete]
-func deleteLocation(c *gin.Context, db *sql.DB) {
+// @Router /products/{id} [delete]
+func deleteProduct(c *gin.Context, db *sql.DB) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
@@ -29,7 +29,7 @@ func deleteLocation(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	res, err := db.Exec(`DELETE FROM locations WHERE id=$1`, id)
+	res, err := db.Exec(`DELETE FROM products WHERE id = $1`, id)
 	if err != nil {
 		response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
@@ -37,9 +37,9 @@ func deleteLocation(c *gin.Context, db *sql.DB) {
 
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
-		response.Err(c, http.StatusNotFound, "NOT_FOUND", "locations not found")
+		response.Err(c, http.StatusNotFound, "NOT_FOUND", "product not found")
 		return
 	}
 
-	response.OK(c, nil)
+	response.OK(c, gin.H{"ok": true})
 }

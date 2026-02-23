@@ -15,6 +15,180 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/orders": {
+            "get": {
+                "description": "Возвращает список заказов (админ), доступных пользователю по его локациям, с пагинацией.\n\nПоддерживает фильтры по location_id и status_id.\nlocation_id — только из локаций пользователя, иначе FORBIDDEN.\nstatus_id — должен существовать, иначе STATUS_NOT_FOUND.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Список заказов",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Фильтр по локации (только доступные пользователю)",
+                        "name": "location_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Фильтр по статусу",
+                        "name": "status_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 10, максимум 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handlers_admin_orders.getOrdersResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/orders/statuses": {
+            "get": {
+                "description": "Возвращает все доступные статусы заказов.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Список статусов заказов",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/orders.orderStatusItem"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/orders/{id}": {
+            "get": {
+                "description": "Возвращает заказ по id, если он относится к одной из локаций текущего пользователя.\n\nВсегда возвращает список order_requests.\nСписок order_products возвращается только если статус заказа не \"draft\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Детали заказа",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handlers_admin_orders.showOrderResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/orders/{id}/cancel": {
+            "post": {
+                "description": "Отменяет заказ, если он принадлежит одной из локаций текущего пользователя.\n\nДоступ только для роли admin.\nПри успешной отмене статус заказа изменяется на \"отменён\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Отмена заказа",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/admin/orders/{id}/products": {
+            "put": {
+                "description": "Полностью заменяет список товаров заказа на переданный в запросе.\n\nОперация выполняется в транзакции: сначала удаляются все текущие позиции, затем вставляются новые.\nЕсли указан request_id — проверяется, что он принадлежит этому заказу.\nПосле обновления пересчитываются total_sum и total_sum_cost.\nЕсли текущий статус заказа \"draft\" — статус меняется на \"assembled\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Установить товары в заказе",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заказа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Список товаров заказа",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orders.setProductsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/auth/me": {
             "get": {
                 "security": [
@@ -105,6 +279,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/locations": {
+            "post": {
+                "description": "Создает новую локацию.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Создание локации",
+                "parameters": [
+                    {
+                        "description": "Данные локации",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/locations.locationCreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/locations.locationCreateResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/locations/{id}": {
+            "put": {
+                "description": "Обновляет название и адрес локации по ID.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Обновление локации",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID локации",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные локации",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/locations.locationUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/locations.locationUpdateResp"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Удаляет локацию по ID.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Удаление локации",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID локации",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "security": [
@@ -145,7 +421,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.getOrdersResp"
+                            "$ref": "#/definitions/internal_handlers_orders.getOrdersResp"
                         }
                     }
                 }
@@ -216,7 +492,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.showOrderResp"
+                            "$ref": "#/definitions/internal_handlers_orders.showOrderResp"
                         }
                     }
                 }
@@ -296,6 +572,184 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/orders.cancelResp"
                         }
+                    }
+                }
+            }
+        },
+        "/products": {
+            "get": {
+                "description": "Возвращает список продуктов с алиасами (админ), с пагинацией.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Список продуктов",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 10, максимум 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/products.getProductsResp"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Создает новый продукт с алиасами.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Создание продукта",
+                "parameters": [
+                    {
+                        "description": "Данные продукта",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/products.productCreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/products.productResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/products/search": {
+            "get": {
+                "description": "Ищет продукты по названию и алиасам.\n\nПараметр q обязателен. Поиск регистронезависимый, поддерживает подстроку и fuzzy (similarity).\nРезультаты ранжируются: сначала точное попадание подстрокой, затем по similarity.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Поиск продуктов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Поисковый запрос",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (по умолчанию 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы (по умолчанию 10, максимум 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/products.getProductsResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/products/{id}": {
+            "put": {
+                "description": "Обновляет название продукта и полностью заменяет список алиасов.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Обновление продукта",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID продукта",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные продукта",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/products.productUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "delete": {
+                "description": "Удаляет продукт по ID.\nДоступ только для роли admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Удаление продукта",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID продукта",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -433,6 +887,237 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_handlers_admin_orders.getOrdersResp": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "page": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        },
+                        "total_pages": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers_admin_orders.orderItem"
+                    }
+                }
+            }
+        },
+        "internal_handlers_admin_orders.orderItem": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_address": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "location_name": {
+                    "type": "string"
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "status_name": {
+                    "type": "string"
+                },
+                "total_sum": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers_admin_orders.showOrderResp": {
+            "type": "object",
+            "properties": {
+                "order": {
+                    "$ref": "#/definitions/internal_handlers_admin_orders.orderItem"
+                },
+                "order_products": {
+                    "description": "nil если статус = черновик",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.orderProductItem"
+                    }
+                },
+                "order_requests": {
+                    "description": "всегда присутствует",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.orderRequestItem"
+                    }
+                }
+            }
+        },
+        "internal_handlers_orders.getOrdersResp": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "page": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        },
+                        "total_pages": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers_orders.orderItem"
+                    }
+                }
+            }
+        },
+        "internal_handlers_orders.orderItem": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers_orders.showOrderResp": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "details_type": {
+                    "description": "\"requests\" | \"products\"",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.productItem"
+                    }
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orders.requestItem"
+                    }
+                },
+                "status_id": {
+                    "type": "integer"
+                },
+                "total_sum": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "locations.locationCreateReq": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "locations.locationCreateResp": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "locations.locationUpdateReq": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "locations.locationUpdateResp": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "orders.cancelResp": {
             "type": "object",
             "properties": {
@@ -487,39 +1172,11 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.getOrdersResp": {
+        "orders.orderProductItem": {
             "type": "object",
             "properties": {
-                "meta": {
-                    "type": "object",
-                    "properties": {
-                        "limit": {
-                            "type": "integer"
-                        },
-                        "page": {
-                            "type": "integer"
-                        },
-                        "total": {
-                            "type": "integer"
-                        },
-                        "total_pages": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "orders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/orders.orderItem"
-                    }
-                }
-            }
-        },
-        "orders.orderItem": {
-            "type": "object",
-            "properties": {
-                "comment": {
-                    "type": "string"
+                "available": {
+                    "type": "boolean"
                 },
                 "created_at": {
                     "type": "string"
@@ -527,13 +1184,68 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "location_id": {
+                "order_id": {
                     "type": "integer"
                 },
-                "status_id": {
+                "price": {
+                    "type": "integer"
+                },
+                "price_cost": {
+                    "type": "integer"
+                },
+                "product_id": {
+                    "type": "integer"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "string"
+                },
+                "request_id": {
                     "type": "integer"
                 },
                 "total_sum": {
+                    "type": "integer"
+                },
+                "total_sum_cost": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.orderRequestItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_available": {
+                    "type": "boolean"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "raw_amount": {
+                    "type": "string"
+                },
+                "raw_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.orderStatusItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -641,45 +1353,47 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.showOrderResp": {
+        "orders.setProductItem": {
             "type": "object",
             "properties": {
-                "comment": {
-                    "type": "string"
+                "available": {
+                    "description": "optional, default true",
+                    "type": "boolean"
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "details_type": {
-                    "description": "\"requests\" | \"products\"",
-                    "type": "string"
-                },
-                "id": {
+                "price": {
+                    "description": "required, \u003e= 0",
                     "type": "integer"
                 },
-                "location_id": {
+                "price_cost": {
+                    "description": "required, \u003e= 0",
                     "type": "integer"
                 },
-                "products": {
+                "product_id": {
+                    "description": "required",
+                    "type": "integer"
+                },
+                "quantity": {
+                    "description": "required: \"1.25\" (max 2 decimals)",
+                    "type": "string"
+                },
+                "request_id": {
+                    "description": "optional",
+                    "type": "integer"
+                },
+                "unit": {
+                    "description": "required",
+                    "type": "string"
+                }
+            }
+        },
+        "orders.setProductsReq": {
+            "type": "object",
+            "properties": {
+                "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/orders.productItem"
+                        "$ref": "#/definitions/orders.setProductItem"
                     }
-                },
-                "requests": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/orders.requestItem"
-                    }
-                },
-                "status_id": {
-                    "type": "integer"
-                },
-                "total_sum": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -729,6 +1443,102 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "products.getProductsResp": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "page": {
+                            "type": "integer"
+                        },
+                        "total": {
+                            "type": "integer"
+                        },
+                        "total_pages": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/products.productItem"
+                    }
+                }
+            }
+        },
+        "products.productCreateReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "product_aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "products.productItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "product_aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "products.productResp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "product_aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "products.productUpdateReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "product_aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

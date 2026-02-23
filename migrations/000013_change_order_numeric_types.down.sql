@@ -1,0 +1,15 @@
+BEGIN;
+
+ALTER TABLE orders
+ALTER COLUMN total_sum TYPE NUMERIC(12,2);
+
+ALTER TABLE order_products
+ALTER COLUMN quantity TYPE NUMERIC(10,3);
+
+ALTER TABLE order_products
+ALTER COLUMN price TYPE NUMERIC(10,2);я
+
+ALTER TABLE order_products
+ALTER COLUMN total_sum TYPE NUMERIC(12,2);
+
+COMMIT;

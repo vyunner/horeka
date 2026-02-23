@@ -22,6 +22,16 @@ type locationCreateResp struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// CreateLocation godoc
+// @Summary Создание локации
+// @Description Создает новую локацию.
+// @Description Доступ только для роли admin.
+// @Tags locations
+// @Accept json
+// @Produce json
+// @Param input body locationCreateReq true "Данные локации"
+// @Success 200 {object} locationCreateResp
+// @Router /locations [post]
 func createLocation(c *gin.Context, db *sql.DB) {
 	var req locationCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {

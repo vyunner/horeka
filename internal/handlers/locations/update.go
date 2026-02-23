@@ -23,6 +23,17 @@ type locationUpdateResp struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// UpdateLocation godoc
+// @Summary Обновление локации
+// @Description Обновляет название и адрес локации по ID.
+// @Description Доступ только для роли admin.
+// @Tags locations
+// @Accept json
+// @Produce json
+// @Param id path int true "ID локации"
+// @Param input body locationUpdateReq true "Данные локации"
+// @Success 200 {object} locationUpdateResp
+// @Router /locations/{id} [put]
 func updateLocation(c *gin.Context, db *sql.DB) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := strconv.ParseInt(idStr, 10, 64)

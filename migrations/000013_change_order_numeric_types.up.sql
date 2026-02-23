@@ -1,0 +1,16 @@
+-- 000013_name.up.sql
+BEGIN;
+
+ALTER TABLE orders
+ALTER COLUMN total_sum TYPE INTEGER;
+
+ALTER TABLE order_products
+ALTER COLUMN quantity TYPE NUMERIC(10,2);
+
+ALTER TABLE order_products
+ALTER COLUMN price TYPE INTEGER;
+
+ALTER TABLE order_products
+ALTER COLUMN total_sum TYPE INTEGER;
+
+COMMIT;

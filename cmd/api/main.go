@@ -10,9 +10,11 @@ package main
 
 import (
 	dbpkg "horeka/internal/db"
+	adminorders "horeka/internal/handlers/admin/orders"
 	"horeka/internal/handlers/auth"
 	"horeka/internal/handlers/locations"
 	"horeka/internal/handlers/orders"
+	"horeka/internal/handlers/products"
 	"horeka/internal/handlers/userlocations"
 	"log"
 	"net/http"
@@ -87,6 +89,8 @@ func main() {
 	locations.RegisterRoutes(r, conn, jwtSecret)
 	userlocations.RegisterRoutes(r, conn, jwtSecret)
 	orders.RegisterRoutes(r, conn, jwtSecret)
+	adminorders.RegisterRoutes(r, conn, jwtSecret)
+	products.RegisterRoutes(r, conn, jwtSecret)
 
 	log.Printf("listening on :%s", port)
 	if err := r.Run(":" + port); err != nil {

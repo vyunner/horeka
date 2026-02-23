@@ -27,6 +27,157 @@ definitions:
         example: "77026207447"
         type: string
     type: object
+  internal_handlers_admin_orders.getOrdersResp:
+    properties:
+      meta:
+        properties:
+          limit:
+            type: integer
+          page:
+            type: integer
+          total:
+            type: integer
+          total_pages:
+            type: integer
+        type: object
+      orders:
+        items:
+          $ref: '#/definitions/internal_handlers_admin_orders.orderItem'
+        type: array
+    type: object
+  internal_handlers_admin_orders.orderItem:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location_address:
+        type: string
+      location_id:
+        type: integer
+      location_name:
+        type: string
+      status_id:
+        type: integer
+      status_name:
+        type: string
+      total_sum:
+        type: string
+    type: object
+  internal_handlers_admin_orders.showOrderResp:
+    properties:
+      order:
+        $ref: '#/definitions/internal_handlers_admin_orders.orderItem'
+      order_products:
+        description: nil если статус = черновик
+        items:
+          $ref: '#/definitions/orders.orderProductItem'
+        type: array
+      order_requests:
+        description: всегда присутствует
+        items:
+          $ref: '#/definitions/orders.orderRequestItem'
+        type: array
+    type: object
+  internal_handlers_orders.getOrdersResp:
+    properties:
+      meta:
+        properties:
+          limit:
+            type: integer
+          page:
+            type: integer
+          total:
+            type: integer
+          total_pages:
+            type: integer
+        type: object
+      orders:
+        items:
+          $ref: '#/definitions/internal_handlers_orders.orderItem'
+        type: array
+    type: object
+  internal_handlers_orders.orderItem:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+    type: object
+  internal_handlers_orders.showOrderResp:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      details_type:
+        description: '"requests" | "products"'
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/orders.productItem'
+        type: array
+      requests:
+        items:
+          $ref: '#/definitions/orders.requestItem'
+        type: array
+      status_id:
+        type: integer
+      total_sum:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  locations.locationCreateReq:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+    type: object
+  locations.locationCreateResp:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  locations.locationUpdateReq:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+    type: object
+  locations.locationUpdateResp:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   orders.cancelResp:
     properties:
       id:
@@ -62,37 +213,55 @@ definitions:
       total_sum:
         type: string
     type: object
-  orders.getOrdersResp:
+  orders.orderProductItem:
     properties:
-      meta:
-        properties:
-          limit:
-            type: integer
-          page:
-            type: integer
-          total:
-            type: integer
-          total_pages:
-            type: integer
-        type: object
-      orders:
-        items:
-          $ref: '#/definitions/orders.orderItem'
-        type: array
-    type: object
-  orders.orderItem:
-    properties:
-      comment:
-        type: string
+      available:
+        type: boolean
       created_at:
         type: string
       id:
         type: integer
-      location_id:
+      order_id:
         type: integer
-      status_id:
+      price:
+        type: integer
+      price_cost:
+        type: integer
+      product_id:
+        type: integer
+      product_name:
+        type: string
+      quantity:
+        type: string
+      request_id:
         type: integer
       total_sum:
+        type: integer
+      total_sum_cost:
+        type: integer
+      unit:
+        type: string
+    type: object
+  orders.orderRequestItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_available:
+        type: boolean
+      order_id:
+        type: integer
+      raw_amount:
+        type: string
+      raw_name:
+        type: string
+    type: object
+  orders.orderStatusItem:
+    properties:
+      id:
+        type: integer
+      name:
         type: string
     type: object
   orders.productItem:
@@ -162,33 +331,36 @@ definitions:
       raw_name:
         type: string
     type: object
-  orders.showOrderResp:
+  orders.setProductItem:
     properties:
-      comment:
-        type: string
-      created_at:
-        type: string
-      details_type:
-        description: '"requests" | "products"'
-        type: string
-      id:
+      available:
+        description: optional, default true
+        type: boolean
+      price:
+        description: required, >= 0
         type: integer
-      location_id:
+      price_cost:
+        description: required, >= 0
         type: integer
-      products:
+      product_id:
+        description: required
+        type: integer
+      quantity:
+        description: 'required: "1.25" (max 2 decimals)'
+        type: string
+      request_id:
+        description: optional
+        type: integer
+      unit:
+        description: required
+        type: string
+    type: object
+  orders.setProductsReq:
+    properties:
+      items:
         items:
-          $ref: '#/definitions/orders.productItem'
+          $ref: '#/definitions/orders.setProductItem'
         type: array
-      requests:
-        items:
-          $ref: '#/definitions/orders.requestItem'
-        type: array
-      status_id:
-        type: integer
-      total_sum:
-        type: string
-      user_id:
-        type: integer
     type: object
   orders.updateReq:
     properties:
@@ -221,6 +393,68 @@ definitions:
         type: string
       user_id:
         type: integer
+    type: object
+  products.getProductsResp:
+    properties:
+      meta:
+        properties:
+          limit:
+            type: integer
+          page:
+            type: integer
+          total:
+            type: integer
+          total_pages:
+            type: integer
+        type: object
+      products:
+        items:
+          $ref: '#/definitions/products.productItem'
+        type: array
+    type: object
+  products.productCreateReq:
+    properties:
+      name:
+        type: string
+      product_aliases:
+        items:
+          type: string
+        type: array
+    type: object
+  products.productItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      product_aliases:
+        items:
+          type: string
+        type: array
+    type: object
+  products.productResp:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      product_aliases:
+        items:
+          type: string
+        type: array
+    type: object
+  products.productUpdateReq:
+    properties:
+      name:
+        type: string
+      product_aliases:
+        items:
+          type: string
+        type: array
     type: object
   userlocations.bindUserToLocationReq:
     properties:
@@ -260,6 +494,139 @@ info:
   title: Horeka API
   version: "1.0"
 paths:
+  /admin/orders:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает список заказов (админ), доступных пользователю по его локациям, с пагинацией.
+
+        Поддерживает фильтры по location_id и status_id.
+        location_id — только из локаций пользователя, иначе FORBIDDEN.
+        status_id — должен существовать, иначе STATUS_NOT_FOUND.
+      parameters:
+      - description: Фильтр по локации (только доступные пользователю)
+        in: query
+        name: location_id
+        type: integer
+      - description: Фильтр по статусу
+        in: query
+        name: status_id
+        type: integer
+      - description: Номер страницы (по умолчанию 1)
+        in: query
+        name: page
+        type: integer
+      - description: Размер страницы (по умолчанию 10, максимум 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handlers_admin_orders.getOrdersResp'
+      summary: Список заказов
+      tags:
+      - admin
+  /admin/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Возвращает заказ по id, если он относится к одной из локаций текущего пользователя.
+
+        Всегда возвращает список order_requests.
+        Список order_products возвращается только если статус заказа не "draft".
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handlers_admin_orders.showOrderResp'
+      summary: Детали заказа
+      tags:
+      - admin
+  /admin/orders/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Отменяет заказ, если он принадлежит одной из локаций текущего пользователя.
+
+        Доступ только для роли admin.
+        При успешной отмене статус заказа изменяется на "отменён".
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Отмена заказа
+      tags:
+      - admin
+  /admin/orders/{id}/products:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Полностью заменяет список товаров заказа на переданный в запросе.
+
+        Операция выполняется в транзакции: сначала удаляются все текущие позиции, затем вставляются новые.
+        Если указан request_id — проверяется, что он принадлежит этому заказу.
+        После обновления пересчитываются total_sum и total_sum_cost.
+        Если текущий статус заказа "draft" — статус меняется на "assembled".
+      parameters:
+      - description: ID заказа
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Список товаров заказа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/orders.setProductsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Установить товары в заказе
+      tags:
+      - admin
+  /admin/orders/statuses:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все доступные статусы заказов.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/orders.orderStatusItem'
+            type: array
+      summary: Список статусов заказов
+      tags:
+      - admin
   /auth/me:
     get:
       description: |-
@@ -335,6 +702,79 @@ paths:
       summary: Подтверждение кода и вход пользователя
       tags:
       - auth
+  /locations:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создает новую локацию.
+        Доступ только для роли admin.
+      parameters:
+      - description: Данные локации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/locations.locationCreateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/locations.locationCreateResp'
+      summary: Создание локации
+      tags:
+      - locations
+  /locations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Удаляет локацию по ID.
+        Доступ только для роли admin.
+      parameters:
+      - description: ID локации
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Удаление локации
+      tags:
+      - locations
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Обновляет название и адрес локации по ID.
+        Доступ только для роли admin.
+      parameters:
+      - description: ID локации
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Данные локации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/locations.locationUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/locations.locationUpdateResp'
+      summary: Обновление локации
+      tags:
+      - locations
   /orders:
     get:
       description: |-
@@ -366,7 +806,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.getOrdersResp'
+            $ref: '#/definitions/internal_handlers_orders.getOrdersResp'
       security:
       - BearerAuth: []
       summary: Получить список заказов по локации с пагинацией
@@ -429,7 +869,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.showOrderResp'
+            $ref: '#/definitions/internal_handlers_orders.showOrderResp'
       security:
       - BearerAuth: []
       summary: Получить детали заказа по ID
@@ -502,6 +942,133 @@ paths:
       summary: Отмена заказа
       tags:
       - orders
+  /products:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список продуктов с алиасами (админ), с пагинацией.
+      parameters:
+      - description: Номер страницы (по умолчанию 1)
+        in: query
+        name: page
+        type: integer
+      - description: Размер страницы (по умолчанию 10, максимум 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/products.getProductsResp'
+      summary: Список продуктов
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создает новый продукт с алиасами.
+        Доступ только для роли admin.
+      parameters:
+      - description: Данные продукта
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/products.productCreateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/products.productResp'
+      summary: Создание продукта
+      tags:
+      - products
+  /products/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Удаляет продукт по ID.
+        Доступ только для роли admin.
+      parameters:
+      - description: ID продукта
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Удаление продукта
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Обновляет название продукта и полностью заменяет список алиасов.
+        Доступ только для роли admin.
+      parameters:
+      - description: ID продукта
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Данные продукта
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/products.productUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Обновление продукта
+      tags:
+      - products
+  /products/search:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Ищет продукты по названию и алиасам.
+
+        Параметр q обязателен. Поиск регистронезависимый, поддерживает подстроку и fuzzy (similarity).
+        Результаты ранжируются: сначала точное попадание подстрокой, затем по similarity.
+      parameters:
+      - description: Поисковый запрос
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Номер страницы (по умолчанию 1)
+        in: query
+        name: page
+        type: integer
+      - description: Размер страницы (по умолчанию 10, максимум 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/products.getProductsResp'
+      summary: Поиск продуктов
+      tags:
+      - products
   /user-locations/bind:
     post:
       consumes:
