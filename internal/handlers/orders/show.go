@@ -57,7 +57,7 @@ type showOrderResp struct {
 // @Description - иначе — возвращаются order_products
 // @Description
 // @Description В ответе всегда присутствуют основные поля заказа (id, location_id, status_id, total_sum, comment, created_at)
-// @Description и один из списков: order_requests или order_products.
+// @Description и оба поля: order_requests и order_products (если данных нет — вернётся []).
 // @Tags orders
 // @Produce json
 // @Security BearerAuth
@@ -79,6 +79,8 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	var resp showOrderResp
 	resp.UserID = userID
+	resp.OrderRequests = make([]requestItem, 0)
+	resp.OrderProducts = make([]productItem, 0)
 
 	var comment sql.NullString
 	err = db.QueryRow(
@@ -115,7 +117,6 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		}
 		defer rows.Close()
 
-		resp.OrderRequests = make([]requestItem, 0)
 		for rows.Next() {
 			var r requestItem
 			if err := rows.Scan(&r.ID, &r.RawName, &r.RawAmount, &r.IsAvailable, &r.CreatedAt); err != nil {
@@ -147,7 +148,6 @@ func showOrder(c *gin.Context, db *sql.DB) {
 	}
 	defer rows.Close()
 
-	resp.OrderProducts = make([]productItem, 0)
 	for rows.Next() {
 		var p productItem
 		var reqID sql.NullInt64
