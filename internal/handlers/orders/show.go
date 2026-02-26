@@ -41,23 +41,17 @@ type showOrderResp struct {
 	Comment    *string   `json:"comment,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 
-	OrderRequests []requestItem `json:"order_requests,omitempty"`
-	OrderProducts []productItem `json:"order_products,omitempty"`
+	// Всегда присутствуют, даже если пустые: []
+	OrderRequests []requestItem `json:"order_requests"`
+	OrderProducts []productItem `json:"order_products"`
 }
 
 // showOrder godoc
 // @Summary Получить детали заказа по ID
-// @Description Возвращает один заказ текущего авторизованного пользователя.
+// @Description Возвращает один заказ текущего пользователя по ID вместе с деталями.
 // @Description
-// @Description Заказ ищется только среди заказов пользователя (id + user_id). Чужие заказы не отдаются.
-// @Description Если заказ не найден — возвращается 404.
-// @Description
-// @Description Детали зависят от статуса заказа:
-// @Description - если status_id = 1 (новый) — возвращаются order_requests
-// @Description - иначе — возвращаются order_products
-// @Description
-// @Description В ответе всегда присутствуют основные поля заказа (id, location_id, status_id, total_sum, comment, created_at)
-// @Description и оба поля: order_requests и order_products (если данных нет — вернётся []).
+// @Description В ответе всегда возвращаются оба массива: order_requests и order_products.
+// @Description Если данных нет — возвращаются пустые массивы [].
 // @Tags orders
 // @Produce json
 // @Security BearerAuth
@@ -71,23 +65,24 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || orderID <= 0 {
 		response.Err(c, http.StatusBadRequest, "INVALID_ID", "invalid id")
 		return
 	}
 
-	var resp showOrderResp
-	resp.UserID = userID
-	resp.OrderRequests = make([]requestItem, 0)
-	resp.OrderProducts = make([]productItem, 0)
+	resp := showOrderResp{
+		UserID:        userID,
+		OrderRequests: make([]requestItem, 0),
+		OrderProducts: make([]productItem, 0),
+	}
 
 	var comment sql.NullString
 	err = db.QueryRow(
 		`SELECT id, location_id, status_id, total_sum, comment, created_at
 		 FROM orders
 		 WHERE id = $1 AND user_id = $2`,
-		id, userID,
+		orderID, userID,
 	).Scan(&resp.ID, &resp.LocationID, &resp.StatusID, &resp.TotalSum, &comment, &resp.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -102,57 +97,52 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		resp.Comment = &comment.String
 	}
 
-	// status_id == 1 -> order_requests
-	if resp.StatusID == 1 {
-		rows, err := db.Query(
-			`SELECT id, raw_name, raw_amount, is_available, created_at
-			 FROM order_requests
-			 WHERE order_id = $1
-			 ORDER BY id ASC`,
-			resp.ID,
-		)
-		if err != nil {
-			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var r requestItem
-			if err := rows.Scan(&r.ID, &r.RawName, &r.RawAmount, &r.IsAvailable, &r.CreatedAt); err != nil {
-				response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
-				return
-			}
-			resp.OrderRequests = append(resp.OrderRequests, r)
-		}
-		if err := rows.Err(); err != nil {
-			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
-			return
-		}
-
-		response.OK(c, resp)
-		return
-	}
-
-	// иначе -> order_products
-	rows, err := db.Query(
-		`SELECT id, request_id, product_id, quantity, unit, price, total_sum, available, created_at
-		 FROM order_products
+	// ---- order_requests (всегда) ----
+	reqRows, err := db.Query(
+		`SELECT id, raw_name, raw_amount, is_available, created_at
+		 FROM order_requests
 		 WHERE order_id = $1
-		 ORDER BY id ASC`,
+		 ORDER BY id`,
 		resp.ID,
 	)
 	if err != nil {
 		response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
-	defer rows.Close()
+	defer reqRows.Close()
 
-	for rows.Next() {
+	for reqRows.Next() {
+		var r requestItem
+		if err := reqRows.Scan(&r.ID, &r.RawName, &r.RawAmount, &r.IsAvailable, &r.CreatedAt); err != nil {
+			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
+			return
+		}
+		resp.OrderRequests = append(resp.OrderRequests, r)
+	}
+	if err := reqRows.Err(); err != nil {
+		response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
+		return
+	}
+
+	// ---- order_products (всегда) ----
+	prodRows, err := db.Query(
+		`SELECT id, request_id, product_id, quantity, unit, price, total_sum, available, created_at
+		 FROM order_products
+		 WHERE order_id = $1
+		 ORDER BY id`,
+		resp.ID,
+	)
+	if err != nil {
+		response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
+		return
+	}
+	defer prodRows.Close()
+
+	for prodRows.Next() {
 		var p productItem
 		var reqID sql.NullInt64
 
-		if err := rows.Scan(&p.ID, &reqID, &p.ProductID, &p.Quantity, &p.Unit, &p.Price, &p.TotalSum, &p.Available, &p.CreatedAt); err != nil {
+		if err := prodRows.Scan(&p.ID, &reqID, &p.ProductID, &p.Quantity, &p.Unit, &p.Price, &p.TotalSum, &p.Available, &p.CreatedAt); err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
 		}
@@ -164,7 +154,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 		resp.OrderProducts = append(resp.OrderProducts, p)
 	}
-	if err := rows.Err(); err != nil {
+	if err := prodRows.Err(); err != nil {
 		response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 		return
 	}
