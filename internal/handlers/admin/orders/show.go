@@ -21,8 +21,7 @@ const (
 type orderRequestItem struct {
 	ID          int64     `json:"id"`
 	OrderID     int64     `json:"order_id"`
-	RawName     string    `json:"raw_name"`
-	RawAmount   string    `json:"raw_amount"`
+	RawProduct  string    `json:"raw_product"`
 	IsAvailable *bool     `json:"is_available,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -137,8 +136,6 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	resp := showOrderResp{Order: o}
 
-	// Requests грузим всегда: при черновике — это основные данные,
-	// при остальных статусах — нужны для отображения raw_name/raw_amount в таблице продуктов.
 	if err := fillRequests(c, db, orderID, &resp); err != nil {
 		return
 	}
@@ -154,7 +151,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 func fillRequests(c *gin.Context, db *sql.DB, orderID int64, resp *showOrderResp) error {
 	rows, err := db.Query(`
-		SELECT id, order_id, raw_name, raw_amount, is_available, created_at
+		SELECT id, order_id, raw_product, is_available, created_at
 		FROM order_requests
 		WHERE order_id = $1
 		ORDER BY created_at ASC, id ASC
@@ -170,7 +167,7 @@ func fillRequests(c *gin.Context, db *sql.DB, orderID int64, resp *showOrderResp
 		var r orderRequestItem
 		var isAvail sql.NullBool
 
-		if err := rows.Scan(&r.ID, &r.OrderID, &r.RawName, &r.RawAmount, &isAvail, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.OrderID, &r.RawProduct, &isAvail, &r.CreatedAt); err != nil {
 			dbErr(c, err)
 			return err
 		}

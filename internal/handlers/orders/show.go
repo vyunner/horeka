@@ -14,8 +14,7 @@ import (
 
 type requestItem struct {
 	ID          int64     `json:"id"`
-	RawName     string    `json:"raw_name"`
-	RawAmount   string    `json:"raw_amount"`
+	RawProduct  string    `json:"raw_product"`
 	IsAvailable *bool     `json:"is_available"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -41,14 +40,13 @@ type showOrderResp struct {
 	Comment    *string   `json:"comment,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 
-	// Всегда присутствуют, даже если пустые: []
 	OrderRequests []requestItem `json:"order_requests"`
 	OrderProducts []productItem `json:"order_products"`
 }
 
 // showOrder godoc
 // @Summary Получить детали заказа по ID
-// @Description Возвращает один заказ текущего пользователя по ID вместе с деталями.
+// @Description Возвращает один заказ текущего авторизованного пользователя вместе с деталями.
 // @Description
 // @Description В ответе всегда возвращаются оба массива: order_requests и order_products.
 // @Description Если данных нет — возвращаются пустые массивы [].
@@ -97,9 +95,9 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		resp.Comment = &comment.String
 	}
 
-	// ---- order_requests (всегда) ----
+	// ---- order_requests ----
 	reqRows, err := db.Query(
-		`SELECT id, raw_name, raw_amount, is_available, created_at
+		`SELECT id, raw_product, is_available, created_at
 		 FROM order_requests
 		 WHERE order_id = $1
 		 ORDER BY id`,
@@ -113,7 +111,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	for reqRows.Next() {
 		var r requestItem
-		if err := reqRows.Scan(&r.ID, &r.RawName, &r.RawAmount, &r.IsAvailable, &r.CreatedAt); err != nil {
+		if err := reqRows.Scan(&r.ID, &r.RawProduct, &r.IsAvailable, &r.CreatedAt); err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
 		}
@@ -124,7 +122,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	// ---- order_products (всегда) ----
+	// ---- order_products ----
 	prodRows, err := db.Query(
 		`SELECT id, request_id, product_id, quantity, unit, price, total_sum, available, created_at
 		 FROM order_products

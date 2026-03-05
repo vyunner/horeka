@@ -29,8 +29,7 @@ type createResp struct {
 
 type requestResp struct {
 	ID          int64     `json:"id"`
-	RawName     string    `json:"raw_name"`
-	RawAmount   string    `json:"raw_amount"`
+	RawProduct  string    `json:"raw_product"`
 	IsAvailable *bool     `json:"is_available"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -39,7 +38,7 @@ type requestResp struct {
 // @Summary Создание нового заказа
 // @Description Создает заказ для текущего авторизованного пользователя в указанной локации.
 // @Description
-// @Description В теле запроса передается список позиций (requests) в свободной форме: raw_name и raw_amount.
+// @Description В теле запроса передается список позиций (requests) в свободной форме: raw_product.
 // @Description Сервер сохраняет эти позиции как заявки и создает заказ в начальном статусе "новый" (status_id = 1).
 // @Description
 // @Description comment — необязательный комментарий к заказу. Если передан пустым, в базе будет NULL и поле может отсутствовать в ответе.
@@ -76,10 +75,9 @@ func createOrder(c *gin.Context, db *sql.DB) {
 	}
 
 	for i := range req.Requests {
-		req.Requests[i].RawName = strings.TrimSpace(req.Requests[i].RawName)
-		req.Requests[i].RawAmount = strings.TrimSpace(req.Requests[i].RawAmount)
-		if req.Requests[i].RawName == "" || req.Requests[i].RawAmount == "" {
-			response.Err(c, http.StatusBadRequest, "INVALID_REQUEST_ITEM", "each request must have raw_name and raw_amount")
+		req.Requests[i].RawProduct = strings.TrimSpace(req.Requests[i].RawProduct)
+		if req.Requests[i].RawProduct == "" {
+			response.Err(c, http.StatusBadRequest, "INVALID_REQUEST_ITEM", "each request must have raw_product")
 			return
 		}
 	}
@@ -124,11 +122,11 @@ func createOrder(c *gin.Context, db *sql.DB) {
 		var rr requestResp
 
 		err = tx.QueryRow(
-			`INSERT INTO order_requests(order_id, raw_name, raw_amount)
-			 VALUES ($1, $2, $3)
-			 RETURNING id, raw_name, raw_amount, is_available, created_at`,
-			resp.OrderID, r.RawName, r.RawAmount,
-		).Scan(&rr.ID, &rr.RawName, &rr.RawAmount, &rr.IsAvailable, &rr.CreatedAt)
+			`INSERT INTO order_requests(order_id, raw_product)
+			 VALUES ($1, $2)
+			 RETURNING id, raw_product, is_available, created_at`,
+			resp.OrderID, r.RawProduct,
+		).Scan(&rr.ID, &rr.RawProduct, &rr.IsAvailable, &rr.CreatedAt)
 
 		if err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
