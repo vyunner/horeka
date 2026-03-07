@@ -13,10 +13,9 @@ import (
 )
 
 type requestItem struct {
-	ID          int64     `json:"id"`
-	RawProduct  string    `json:"raw_product"`
-	IsAvailable *bool     `json:"is_available"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID         int64     `json:"id"`
+	RawProduct string    `json:"raw_product"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type productItem struct {
@@ -98,7 +97,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	// ---- order_requests ----
 	reqRows, err := db.Query(
-		`SELECT id, raw_product, is_available, created_at
+		`SELECT id, raw_product, created_at
 		 FROM order_requests
 		 WHERE order_id = $1
 		 ORDER BY id`,
@@ -112,14 +111,9 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	for reqRows.Next() {
 		var r requestItem
-		var isAvail sql.NullBool
-		if err := reqRows.Scan(&r.ID, &r.RawProduct, &isAvail, &r.CreatedAt); err != nil {
+		if err := reqRows.Scan(&r.ID, &r.RawProduct, &r.CreatedAt); err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
-		}
-		if isAvail.Valid {
-			v := isAvail.Bool
-			r.IsAvailable = &v
 		}
 		resp.OrderRequests = append(resp.OrderRequests, r)
 	}
