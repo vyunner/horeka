@@ -20,15 +20,16 @@ type requestItem struct {
 }
 
 type productItem struct {
-	ID        int64     `json:"id"`
-	RequestID *int64    `json:"request_id,omitempty"`
-	ProductID int64     `json:"product_id"`
-	Quantity  string    `json:"quantity"`
-	Unit      string    `json:"unit"`
-	Price     string    `json:"price"`
-	TotalSum  string    `json:"total_sum"`
-	Available bool      `json:"available"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          int64     `json:"id"`
+	RequestID   *int64    `json:"request_id,omitempty"`
+	ProductID   int64     `json:"product_id"`
+	ProductName string    `json:"product_name"`
+	Quantity    string    `json:"quantity"`
+	Unit        string    `json:"unit"`
+	Price       string    `json:"price"`
+	TotalSum    string    `json:"total_sum"`
+	Available   bool      `json:"available"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type showOrderResp struct {
@@ -111,9 +112,14 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	for reqRows.Next() {
 		var r requestItem
-		if err := reqRows.Scan(&r.ID, &r.RawProduct, &r.IsAvailable, &r.CreatedAt); err != nil {
+		var isAvail sql.NullBool
+		if err := reqRows.Scan(&r.ID, &r.RawProduct, &isAvail, &r.CreatedAt); err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
+		}
+		if isAvail.Valid {
+			v := isAvail.Bool
+			r.IsAvailable = &v
 		}
 		resp.OrderRequests = append(resp.OrderRequests, r)
 	}
@@ -124,10 +130,11 @@ func showOrder(c *gin.Context, db *sql.DB) {
 
 	// ---- order_products ----
 	prodRows, err := db.Query(
-		`SELECT id, request_id, product_id, quantity, unit, price, total_sum, available, created_at
-		 FROM order_products
-		 WHERE order_id = $1
-		 ORDER BY id`,
+		`SELECT op.id, op.request_id, op.product_id, p.name, op.quantity, op.unit, op.price, op.total_sum, op.available, op.created_at
+		 FROM order_products op
+		 JOIN products p ON p.id = op.product_id
+		 WHERE op.order_id = $1
+		 ORDER BY op.id`,
 		resp.ID,
 	)
 	if err != nil {
@@ -140,7 +147,7 @@ func showOrder(c *gin.Context, db *sql.DB) {
 		var p productItem
 		var reqID sql.NullInt64
 
-		if err := prodRows.Scan(&p.ID, &reqID, &p.ProductID, &p.Quantity, &p.Unit, &p.Price, &p.TotalSum, &p.Available, &p.CreatedAt); err != nil {
+		if err := prodRows.Scan(&p.ID, &reqID, &p.ProductID, &p.ProductName, &p.Quantity, &p.Unit, &p.Price, &p.TotalSum, &p.Available, &p.CreatedAt); err != nil {
 			response.Err(c, http.StatusInternalServerError, "DB_ERROR", "db error")
 			return
 		}
