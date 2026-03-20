@@ -16,6 +16,7 @@ import (
 	"horeka/internal/handlers/orders"
 	"horeka/internal/handlers/products"
 	"horeka/internal/handlers/userlocations"
+	"horeka/internal/telegram"
 	"log"
 	"net/http"
 	"os"
@@ -84,6 +85,14 @@ func main() {
 	})
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Telegram bot
+	tgBot := telegram.New(os.Getenv("TG_BOT_TOKEN"), conn)
+	if tgBot != nil {
+		tgBot.StartPolling()
+		log.Println("Telegram bot started")
+	}
+	orders.SetBot(tgBot)
 
 	auth.RegisterRoutes(r, conn, jwtSecret)
 	locations.RegisterRoutes(r, conn, jwtSecret)
