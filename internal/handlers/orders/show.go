@@ -70,18 +70,21 @@ func showOrder(c *gin.Context, db *sql.DB) {
 	}
 
 	resp := showOrderResp{
-		UserID:        userID,
 		OrderRequests: make([]requestItem, 0),
 		OrderProducts: make([]productItem, 0),
 	}
 
 	var comment sql.NullString
 	err = db.QueryRow(
-		`SELECT id, location_id, status_id, total_sum, comment, created_at
-		 FROM orders
-		 WHERE id = $1 AND user_id = $2`,
+		`SELECT o.id, o.user_id, o.location_id, o.status_id, o.total_sum, o.comment, o.created_at
+		 FROM orders o
+		 WHERE o.id = $1
+		   AND EXISTS (
+		       SELECT 1 FROM user_locations ul
+		       WHERE ul.user_id = $2 AND ul.location_id = o.location_id
+		   )`,
 		orderID, userID,
-	).Scan(&resp.ID, &resp.LocationID, &resp.StatusID, &resp.TotalSum, &comment, &resp.CreatedAt)
+	).Scan(&resp.ID, &resp.UserID, &resp.LocationID, &resp.StatusID, &resp.TotalSum, &comment, &resp.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		response.Err(c, http.StatusNotFound, "NOT_FOUND", "order not found")
