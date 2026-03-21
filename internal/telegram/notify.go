@@ -20,6 +20,15 @@ type OrderInfo struct {
 
 // NotifyNewOrder sends a notification to all chats subscribed to the order's location.
 func (b *Bot) NotifyNewOrder(info OrderInfo) {
+	b.notifyOrder(info, false)
+}
+
+// NotifyUpdatedOrder sends a notification about an edited order.
+func (b *Bot) NotifyUpdatedOrder(info OrderInfo) {
+	b.notifyOrder(info, true)
+}
+
+func (b *Bot) notifyOrder(info OrderInfo, isUpdate bool) {
 	if b == nil {
 		return
 	}
@@ -33,7 +42,11 @@ func (b *Bot) NotifyNewOrder(info OrderInfo) {
 
 	// Build message
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("🆕 <b>Новый заказ #%d</b>\n", info.OrderID))
+	if isUpdate {
+		sb.WriteString(fmt.Sprintf("✏️ <b>Заказ #%d изменён</b>\n", info.OrderID))
+	} else {
+		sb.WriteString(fmt.Sprintf("🆕 <b>Новый заказ #%d</b>\n", info.OrderID))
+	}
 	sb.WriteString(fmt.Sprintf("📍 %s\n", escapeHTML(locName)))
 	if info.UserPhone != "" {
 		sb.WriteString(fmt.Sprintf("👤 +%s\n", escapeHTML(info.UserPhone)))
@@ -79,6 +92,15 @@ func (b *Bot) getSubscribers(locationID int64) []int64 {
 
 // NotifyNewOrderFromDB builds OrderInfo from DB and sends notifications.
 func (b *Bot) NotifyNewOrderFromDB(db *sql.DB, orderID int64) {
+	b.notifyOrderFromDB(db, orderID, false)
+}
+
+// NotifyUpdatedOrderFromDB builds OrderInfo from DB and sends update notification.
+func (b *Bot) NotifyUpdatedOrderFromDB(db *sql.DB, orderID int64) {
+	b.notifyOrderFromDB(db, orderID, true)
+}
+
+func (b *Bot) notifyOrderFromDB(db *sql.DB, orderID int64, isUpdate bool) {
 	if b == nil {
 		return
 	}
@@ -95,7 +117,7 @@ func (b *Bot) NotifyNewOrderFromDB(db *sql.DB, orderID int64) {
 	).Scan(&info.LocationID, &info.UserPhone, &commentNull, &info.CreatedAt)
 
 	if err != nil {
-		log.Printf("[tg-bot] NotifyNewOrderFromDB query order: %v", err)
+		log.Printf("[tg-bot] notifyOrderFromDB query order: %v", err)
 		return
 	}
 
@@ -107,7 +129,7 @@ func (b *Bot) NotifyNewOrderFromDB(db *sql.DB, orderID int64) {
 		`SELECT raw_product FROM order_requests WHERE order_id=$1 ORDER BY id`, orderID,
 	)
 	if err != nil {
-		log.Printf("[tg-bot] NotifyNewOrderFromDB query requests: %v", err)
+		log.Printf("[tg-bot] notifyOrderFromDB query requests: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -119,7 +141,11 @@ func (b *Bot) NotifyNewOrderFromDB(db *sql.DB, orderID int64) {
 		}
 	}
 
-	b.NotifyNewOrder(info)
+	if isUpdate {
+		b.NotifyUpdatedOrder(info)
+	} else {
+		b.NotifyNewOrder(info)
+	}
 }
 
 func escapeHTML(s string) string {

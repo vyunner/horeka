@@ -191,5 +191,10 @@ func updateOrder(c *gin.Context, db *sql.DB) {
 		return
 	}
 
+	// Telegram notification (async, non-blocking)
+	if tgBot != nil {
+		go tgBot.NotifyUpdatedOrderFromDB(db, orderID)
+	}
+
 	response.OK(c, resp)
 }
