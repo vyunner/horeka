@@ -106,5 +106,9 @@ func cancelOrder(c *gin.Context, db *sql.DB) {
 		return
 	}
 
+	if tgBot != nil {
+		go tgBot.NotifyCancelledOrderFromDB(db, orderID)
+	}
+
 	response.OK(c, cancelResp{ID: orderID, StatusID: cancelledStatusID})
 }

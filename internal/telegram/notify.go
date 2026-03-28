@@ -18,17 +18,30 @@ type OrderInfo struct {
 	CreatedAt  time.Time
 }
 
-// NotifyNewOrder sends a notification to all chats subscribed to the order's location.
+type orderAction int
+
+const (
+	actionNew       orderAction = iota
+	actionUpdated
+	actionCancelled
+)
+
+// NotifyNewOrder sends a "new order" notification to all registered chats.
 func (b *Bot) NotifyNewOrder(info OrderInfo) {
-	b.notifyOrder(info, false)
+	b.notifyOrder(info, actionNew)
 }
 
-// NotifyUpdatedOrder sends a notification about an edited order.
+// NotifyUpdatedOrder sends an "order updated" notification to all registered chats.
 func (b *Bot) NotifyUpdatedOrder(info OrderInfo) {
-	b.notifyOrder(info, true)
+	b.notifyOrder(info, actionUpdated)
 }
 
-func (b *Bot) notifyOrder(info OrderInfo, isUpdate bool) {
+// NotifyCancelledOrder sends an "order cancelled" notification to all registered chats.
+func (b *Bot) NotifyCancelledOrder(info OrderInfo) {
+	b.notifyOrder(info, actionCancelled)
+}
+
+func (b *Bot) notifyOrder(info OrderInfo, action orderAction) {
 	if b == nil {
 		return
 	}
@@ -42,9 +55,12 @@ func (b *Bot) notifyOrder(info OrderInfo, isUpdate bool) {
 
 	// Build message
 	var sb strings.Builder
-	if isUpdate {
+	switch action {
+	case actionUpdated:
 		sb.WriteString(fmt.Sprintf("✏️ <b>Заказ #%d изменён</b>\n", info.OrderID))
-	} else {
+	case actionCancelled:
+		sb.WriteString(fmt.Sprintf("❌ <b>Заказ #%d отменён</b>\n", info.OrderID))
+	default:
 		sb.WriteString(fmt.Sprintf("🆕 <b>Новый заказ #%d</b>\n", info.OrderID))
 	}
 	sb.WriteString(fmt.Sprintf("📍 %s\n", escapeHTML(locName)))
@@ -65,15 +81,14 @@ func (b *Bot) notifyOrder(info OrderInfo, isUpdate bool) {
 
 	text := sb.String()
 
-	// Get subscribed chat_ids
-	chatIDs := b.getSubscribers(info.LocationID)
+	chatIDs := b.getSubscribers()
 	for _, chatID := range chatIDs {
 		b.sendMessage(chatID, text)
 	}
 }
 
-func (b *Bot) getSubscribers(locationID int64) []int64 {
-	rows, err := b.db.Query(`SELECT DISTINCT chat_id FROM tg_chats WHERE location_id=$1`, locationID)
+func (b *Bot) getSubscribers() []int64 {
+	rows, err := b.db.Query(`SELECT DISTINCT chat_id FROM tg_chats`)
 	if err != nil {
 		log.Printf("[tg-bot] getSubscribers: %v", err)
 		return nil
@@ -92,15 +107,20 @@ func (b *Bot) getSubscribers(locationID int64) []int64 {
 
 // NotifyNewOrderFromDB builds OrderInfo from DB and sends notifications.
 func (b *Bot) NotifyNewOrderFromDB(db *sql.DB, orderID int64) {
-	b.notifyOrderFromDB(db, orderID, false)
+	b.notifyOrderFromDB(db, orderID, actionNew)
 }
 
 // NotifyUpdatedOrderFromDB builds OrderInfo from DB and sends update notification.
 func (b *Bot) NotifyUpdatedOrderFromDB(db *sql.DB, orderID int64) {
-	b.notifyOrderFromDB(db, orderID, true)
+	b.notifyOrderFromDB(db, orderID, actionUpdated)
 }
 
-func (b *Bot) notifyOrderFromDB(db *sql.DB, orderID int64, isUpdate bool) {
+// NotifyCancelledOrderFromDB builds OrderInfo from DB and sends cancellation notification.
+func (b *Bot) NotifyCancelledOrderFromDB(db *sql.DB, orderID int64) {
+	b.notifyOrderFromDB(db, orderID, actionCancelled)
+}
+
+func (b *Bot) notifyOrderFromDB(db *sql.DB, orderID int64, action orderAction) {
 	if b == nil {
 		return
 	}
@@ -141,11 +161,7 @@ func (b *Bot) notifyOrderFromDB(db *sql.DB, orderID int64, isUpdate bool) {
 		}
 	}
 
-	if isUpdate {
-		b.NotifyUpdatedOrder(info)
-	} else {
-		b.NotifyNewOrder(info)
-	}
+	b.notifyOrder(info, action)
 }
 
 func escapeHTML(s string) string {
